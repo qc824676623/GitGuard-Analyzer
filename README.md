@@ -14,7 +14,7 @@ ipanalyzer/
 ├── nginx_ip_geo_stats.py# 主应用文件
 ├── map/# 地图数据
 │  ├── dbip_geo.txt# 地理文本数据
-│  ├── dbip_index.bin# 二进制索引
+│  ├── dbip_index.bin# 二进制索引(由于上传限制，需解压zip)
 │  └── dbip_tobin.py# 数据转换工具
 ├── dbip-city-lite-2025-09.csv # IP数据库（文件过大，需要更新时请自行下载）
 └── gitlab_error.log# 错误日志（用于测试）
