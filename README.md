@@ -11,7 +11,7 @@
 ### 项目结构
 ```
 ipanalyzer/
-├── nginx_ip_geo_stats_.py# 主应用文件
+├── nginx_ip_geo_stats.py# 主应用文件
 ├── map/# 地图数据
 │  ├── dbip_geo.txt# 地理文本数据
 │  ├── dbip_index.bin# 二进制索引
@@ -58,14 +58,14 @@ GEO_TEXT_PATH = "map/dbip_geo.txt"# 地理文本路径
 pip install -r requirements.txt
 ```
 
-2. **准备数据**:
+2. **准备数据**:[仅需要更新地图信息时执行]
 ```bash
-python map/dbip_tobin.py
+python3 map/dbip_tobin.py
 ```
 
 3. **启动应用**:
 ```bash
-python nginx_ip_geo_stats_.py
+python3 nginx_ip_geo_stats.py
 ```
 
 4. **访问界面**: `http://localhost:5000`
@@ -93,11 +93,25 @@ python nginx_ip_geo_stats_.py
 
 ## 🖼️ 界面预览
 
-![仪表盘](https://github.com/user-attachments/assets/26a07ad7-c59e-491d-bb1e-34f266505489)
-*系统仪表盘界面*
+<div align="center">
 
-![热力图](https://github.com/user-attachments/assets/3b68cf55-fd96-4e63-b9df-ddc7d3fbc5d4)
-*IP地理分布热力图*
+![仪表盘界面](https://github.com/user-attachments/assets/26a07ad7-c59e-491d-bb1e-34f266505489)
+*图1：系统仪表盘界面*
+
+![仪表盘](https://github.com/user-attachments/assets/92abbd2b-5d23-4e14-9777-9e69e2b49b1e)
+*图2：*URL访问频次统计*
+
+![时间分布图](https://github.com/user-attachments/assets/f7f4be30-5986-46be-9638-43d2d925ee6b)
+*图3：*时间分布图*
+
+![访问统计](https://github.com/user-attachments/assets/78cc5fbe-1f1d-4b15-95ea-fc8605628c54)
+![详细分析](https://github.com/user-attachments/assets/e28e2e38-007f-4409-a861-105de298271f)
+![实时监控](https://github.com/user-attachments/assets/8d4f46a7-e309-4371-bce1-8392073a7dcf)
+*图4：详细分析页面*
+
+
+
+</div>
 
 ## Python版本要求
 本项目推荐使用 Python 3.6+ 版本
