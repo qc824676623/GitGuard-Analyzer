@@ -1,10 +1,12 @@
+[English](README.md) | 中文
+
 # IPGeoAnalyzer for GitLab - nginx IP地理威胁分析工具
 
 [![Version](https://img.shields.io/badge/Version-1.0.0-blue)](https://github.com/yourusername/IPGeoAnalyzer)
 [![Python](https://img.shields.io/badge/Python-3.6%2B-green)](https://python.org)
 [![License](https://img.shields.io/badge/License-GPL--3.0-orange)](https://www.gnu.org/licenses/gpl-3.0.html)
 
-专为GitLab构建的IP地理威胁分析工具，基于nginx日志分析，提供全球异常访问来源可视化。
+专为GitLab构建的IP地理威胁分析工具，基于gitlab内置的nginx日志分析，提供全球异常访问来源可视化。
 
 ## 📦 部署指南
 
