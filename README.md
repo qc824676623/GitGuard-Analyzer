@@ -8,11 +8,10 @@ A specialized IP geographic threat analysis tool built for GitLab, based on ngin
 
 专为GitLab构建的IP地理威胁分析工具，基于gitlab内置的nginx日志分析，提供全球异常访问来源可视化。
 
-## 🌐 Table of Contents / 目录
-- [English](README.md)
-- [中文](README_CN.md)
+## 🌐 Languages / 语言选择
 
----
+- [English](README.md) 🇺🇸  
+- [中文](README_CN.md) 🇨🇳
 
 ## English
 
