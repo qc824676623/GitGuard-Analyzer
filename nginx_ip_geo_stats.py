@@ -11,13 +11,14 @@ matplotlib.use('Agg')  # 非交互式后端，适合服务器环境
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-from flask import Flask, render_template, make_response
+from flask import Flask, render_template, make_response, app
 from io import BytesIO
 import base64
 import folium
 from folium import plugins
 import platform  # 添加导入platform模块
-
+import threading
+import time
 # 在generate_charts函数中修改字体设置部分
 # 替换原有的字体设置代码
 # 设置中文字体
@@ -56,6 +57,21 @@ TIME_GRANS = {  # 时间粒度定义（名称: 天数）
     "历史情况": 365 * 10  # 足够大的天数覆盖所有历史
 }
 
+
+# 在文件开头添加
+LAST_REFRESH_TIME = None
+REFRESH_INTERVAL = 3600  # 1小时
+
+# 添加定时刷新线程
+def auto_refresh():
+    while True:
+        time.sleep(REFRESH_INTERVAL)
+        try:
+            main()
+            LAST_REFRESH_TIME = datetime.datetime.now()
+            print(f"自动刷新完成于 {LAST_REFRESH_TIME}")
+        except Exception as e:
+            print(f"自动刷新失败: {e}")
 
 def generate_charts(time_name, stats):
     charts = {}
@@ -336,55 +352,22 @@ def process_log_file(file_path, time_days, ip_segments, geo_lines, stats):
 # 4. 主函数：遍历文件+多维度统计
 # ========================
 def main():
-    global GLOBAL_STATS
-    # 步骤1：加载二进制索引（仅加载一次）
-    print("[1/3] 加载二进制索引和地名数据...")
+    global LAST_REFRESH_TIME  # 添加global声明
+
+    # 先执行统计
     try:
-        ip_segments, geo_lines = load_bin_index()
-        print(f"✅ 加载完成：{len(ip_segments)}条IP段，{len(geo_lines)}条地名")
+        refresh_stats_only()
+        # 第一次统计完成后更新最后刷新时间
+        LAST_REFRESH_TIME = datetime.datetime.now()
+        print("GLOBAL_STATS 初始化成功")
+        print(f"首次数据刷新完成于 {LAST_REFRESH_TIME}")
     except Exception as e:
-        print(f"❌ 索引加载失败：{e}")
-        return
+        print(f"GLOBAL_STATS 初始化失败: {e}")
+        return  # 初始化失败时直接返回
 
-    # 步骤2：遍历日志目录下的所有文件（支持.log和.gz）
-    print("\n[2/3] 遍历日志文件（支持.gz压缩）...")
-    log_files = []
-    for filename in os.listdir(LOG_DIR):
-        if filename.startswith('gitlab_error') and (filename.endswith('.log') or filename.endswith('.gz')):
-            log_files.append(os.path.join(LOG_DIR, filename))
-    if not log_files:
-        print(f"❌ 未找到日志文件，目录：{LOG_DIR}")
-        return
-    print(f"📂 发现 {len(log_files)} 个日志文件：{[os.path.basename(f) for f in log_files[:5]]}...")
-
-    # 步骤3：按时间粒度统计（最近一天/一周/一月/历史）
-    print("\n[3/3] 按时间粒度统计...")
-    print("\n[3/3] 按时间粒度统计...")
-    time_stats = OrderedDict()  # 存储各时间粒度的统计结果
-
-    for time_name, days in TIME_GRANS.items():
-        print(f"\n--- 统计[{time_name}] ---")
-        # 初始化当前时间粒度的统计容器
-        stats = {
-            'total': 0,
-            'ip_freq': defaultdict(int),
-            'country_freq': defaultdict(int),
-            'region_freq': defaultdict(int),  # 保持不变，因为模板中使用了元组解包
-            'city_freq': defaultdict(int),  # 保持不变，因为模板中使用了元组解包
-            'hour_freq': defaultdict(int),  # 添加时段统计
-            'url_freq': defaultdict(int),  # 添加URL统计字段
-            'geo_data': defaultdict(list)  # 添加geo_data初始化
-        }
-        # 遍历所有日志文件，累加统计
-        for file_path in log_files:
-            print(f"  处理文件：{os.path.basename(file_path)}", end='\r')
-            process_log_file(file_path, days, ip_segments, geo_lines, stats)
-        print(f"  处理完成：共{stats['total']}条记录          ")
-        time_stats[time_name] = stats
-
-    # 保存统计数据到全局变量
-    GLOBAL_STATS = time_stats
-    print("\n统计完成！")
+    # 启动自动刷新线程（在Web服务器之前）
+    refresh_thread = threading.Thread(target=auto_refresh, daemon=True)
+    refresh_thread.start()
 
     # 启动Web服务器
     start_web_server()
@@ -395,7 +378,7 @@ def main():
     print("📊 GitLab Nginx错误日志IP地理统计报告")
     print("=" * 100)
 
-    for time_name, stats in time_stats.items():
+    for time_name, stats in GLOBAL_STATS.items():
         print(f"\n\n【{time_name}】（异常总访问：{stats['total']}次）")
         print("-" * 60)
 
@@ -430,7 +413,27 @@ def start_web_server():
 
     @app.route('/')
     def index():
-        return render_template('index.html', time_periods=GLOBAL_STATS.keys())
+        # 默认显示当日统计
+        default_time_name = '最近一天'
+        if default_time_name not in GLOBAL_STATS:
+            return "暂无统计数据", 404
+
+        stats = GLOBAL_STATS[default_time_name]
+        try:
+            charts = generate_charts(default_time_name, stats)
+        except Exception as e:
+            charts = {}
+            print(f"生成图表时出错: {str(e)}")
+
+        last_refresh_time = LAST_REFRESH_TIME.strftime('%Y-%m-%d %H:%M:%S') if LAST_REFRESH_TIME else '从未刷新'
+
+        return render_template('stats.html',
+                               time_name=default_time_name,
+                               stats=stats,
+                               charts=charts,
+                               top_n=TOP_N,
+                               last_refresh_time=last_refresh_time,
+                               time_periods=GLOBAL_STATS.keys())
 
     @app.route('/stats/<time_name>')
     def show_stats(time_name):
@@ -443,8 +446,26 @@ def start_web_server():
         except Exception as e:
             charts = {}
             print(f"生成图表时出错: {str(e)}")
-        return render_template('stats.html', time_name=time_name, stats=stats, charts=charts, top_n=TOP_N)
 
+        last_refresh_time = LAST_REFRESH_TIME.strftime('%Y-%m-%d %H:%M:%S') if LAST_REFRESH_TIME else '从未刷新'
+
+        return render_template('stats.html',
+                               time_name=time_name,
+                               stats=stats,
+                               charts=charts,
+                               top_n=TOP_N,
+                               last_refresh_time=last_refresh_time,
+                               time_periods=GLOBAL_STATS.keys())
+
+    @app.route('/refresh')
+    def refresh_data():
+        try:
+            refresh_stats_only()
+            global LAST_REFRESH_TIME
+            LAST_REFRESH_TIME = datetime.datetime.now()
+            return "数据刷新成功！<a href='/'>返回首页</a>"
+        except Exception as e:
+            return f"数据刷新失败: {str(e)}"
     # 创建简单的HTML模板
     create_templates()
 
@@ -494,6 +515,23 @@ def create_templates():
             padding: 20px;
             background-color: #1e1e2d;
             color: #e0e0e0;
+            position: relative; /* 添加相对定位 */
+        }
+        .refresh-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background-color: #252536;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .refresh-time {
+            color: #6c757d;
+            font-size: 14px;
         }
         .dashboard-container {
             display: grid;
@@ -537,15 +575,6 @@ def create_templates():
             border-bottom: 2px solid #6ab0f3;
             padding-bottom: 10px;
         }
-        .back-link { 
-            display: inline-block; 
-            margin-bottom: 20px; 
-            padding: 10px 15px; 
-            background-color: #6c757d; 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 5px; 
-        }
         table { 
             border-collapse: collapse; 
             width: 100%; 
@@ -568,12 +597,13 @@ def create_templates():
             max-width: 100%;
             border-radius: 10px;
         }
-        .header {
+         .header {
             background-color: #252536;
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            text-align: center; /* 添加居中显示 */
         }
         .header h1, .header h2 {
             margin: 0 0 10px 0;
@@ -581,14 +611,33 @@ def create_templates():
     </style>
 </head>
 <body>
-    
-    <a href="/" class="back-link">← 返回时间范围选择</a>
 
     <div class="header">
-        <h1>{{ time_name }} 威胁分布与统计</h1>
+        <h1>{{ time_name }} Gitlab威胁分布与统计</h1>
         <h2>总访问：{{ stats.total }}次</h2>
     </div>
-
+    
+    <!-- 在页面顶部添加日期范围选择器 -->
+    <div class="time-period-selector" style="margin-bottom: 30px; background-color: #252536; padding: 15px; border-radius: 8px;">
+        <h2 style="margin-top: 0; color: #6ab0f3;">选择时间范围:</h2>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            {% for period in time_periods %}
+                <a href="/stats/{{ period }}" 
+                   class="time-period" 
+                   style="display: inline-block; padding: 10px 15px; background-color: {% if period == time_name %}#28a745{% else %}#007bff{% endif %}; color: white; text-decoration: none; border-radius: 5px; transition: background-color 0.3s;">
+                    {{ period }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+    <!-- 将刷新按钮和时间移到右上方 -->
+    <div class="refresh-container">
+        <a href="/refresh" class="time-period" style="background-color: #28a745;">🔄 立即刷新数据</a>
+        <span class="refresh-time">最后刷新: {{ last_refresh_time }}</span>
+    </div>
+            
+    
+    
     <div class="dashboard-container">
         <!-- 地图区域 -->
         <div class="map-section">
@@ -743,6 +792,10 @@ def create_templates():
         <p>没有找到城市访问数据</p>
         {% endif %}
     </div>
+    <div style="margin-top: 40px; padding: 20px; text-align: center; color: #6c757d; border-top: 1px solid #444;">
+        <p>© 2025 GitLab威胁分析系统 | 版权所有</p>
+        <p>Powered by Python Flask & Folium</p>
+    </div>
 </body>
 
 <script>
@@ -785,6 +838,60 @@ def create_templates():
 </html>'''
     with open(os.path.join(template_dir, 'stats.html'), 'w', encoding='utf-8') as f:
         f.write(stats_html)
+
+def auto_refresh():
+    global LAST_REFRESH_TIME  # 添加global声明
+    while True:
+        time.sleep(REFRESH_INTERVAL)
+        try:
+            # 只执行统计功能，不启动Web服务器
+            refresh_stats_only()
+            LAST_REFRESH_TIME = datetime.datetime.now()
+            print(f"自动刷新完成于 {LAST_REFRESH_TIME}")
+        except Exception as e:
+            print(f"自动刷新失败: {e}")
+
+
+# 添加新的统计函数，不包含Web服务器启动
+def refresh_stats_only():
+    global GLOBAL_STATS
+    # 步骤1：加载二进制索引（仅加载一次）
+    print("[自动刷新] 加载二进制索引和地名数据...")
+    try:
+        ip_segments, geo_lines = load_bin_index()
+    except Exception as e:
+        print(f"❌ 索引加载失败：{e}")
+        return
+
+    # 步骤2：遍历日志目录下的所有文件
+    log_files = []
+    for filename in os.listdir(LOG_DIR):
+        if filename.startswith('gitlab_error') and (filename.endswith('.log') or filename.endswith('.gz')):
+            log_files.append(os.path.join(LOG_DIR, filename))
+
+    if not log_files:
+        return
+
+    # 步骤3：按时间粒度统计
+    time_stats = OrderedDict()
+    for time_name, days in TIME_GRANS.items():
+        stats = {
+            'total': 0,
+            'ip_freq': defaultdict(int),
+            'country_freq': defaultdict(int),
+            'region_freq': defaultdict(int),
+            'city_freq': defaultdict(int),
+            'hour_freq': defaultdict(int),
+            'url_freq': defaultdict(int),
+            'geo_data': defaultdict(list)
+        }
+        for file_path in log_files:
+            process_log_file(file_path, days, ip_segments, geo_lines, stats)
+        time_stats[time_name] = stats
+
+    # 更新全局统计数据
+    GLOBAL_STATS = time_stats
+    print("[自动刷新] 统计完成！")
 
 if __name__ == "__main__":
     main()
