@@ -9,6 +9,30 @@
 专为GitLab构建的IP地理威胁分析工具，基于gitlab内置的nginx日志分析，提供全球异常访问来源可视化。
 
 ## 📦 部署指南
+- 以 Docker 容器方式运行，无需本地环境配置
+- 下载源代码部署
+## 🐳 使用 Docker 镜像（推荐）
+
+我们已经将工具打包为 Docker 镜像并推送至阿里云容器镜像服务，你可以直接拉取并运行：
+
+### 拉取镜像
+```bash
+docker pull registry.cn-hangzhou.aliyuncs.com/qc123mjs/gitguard-analyzer:latest
+```
+### 运行容器
+```bash
+docker run -d -p 5000:5000 -v /var/log/gitlab/nginx:/var/log/gitlab/nginx --name gitguard-analyzer gitguard-analyzer
+-p [宿主机端口]:[容器端口5000]
+-v [宿主机文件夹]:[容器内文件夹/var/log/gitlab/nginx]
+```
+
+## 🛠️ 本地开发（可选）
+
+如果你想自己构建 Docker 镜像：
+```bash
+cd /GitGuard-Analyzer
+docker build -t gitguard-analyzer .
+```
 
 ### 项目结构
 ```
