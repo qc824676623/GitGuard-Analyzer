@@ -31,9 +31,10 @@ docker pull registry.cn-hangzhou.aliyuncs.com/qc123mjs/gitguard-analyzer:latest
 ### Run the Container
 ```bash
 docker run -d -p 5000:5000 -v /var/log/gitlab/nginx:/var/log/gitlab/nginx --name gitguard-analyzer gitguard-analyzer
+```
 -p [Host Port]:[Container Port 5000]
 -v [Host Directory]:[Container Directory /var/log/gitlab/nginx]
-```
+
 
 ## 🛠️ Local Development (Optional)
 
