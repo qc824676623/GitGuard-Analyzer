@@ -1,16 +1,21 @@
-# 1. 基础镜像（确保稳定版）
-FROM python:3.12-bookworm
+# 使用Python 3.9或更高版本
+FROM python:3.9-slim-bullseye
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 2. 设置工作目录
 WORKDIR /app
 
 # 3. 复制依赖文件（优先复制 requirements.txt，利用 Docker 缓存）
 COPY requirements.txt .
+	
 
-# 4. 彻底配置国内APT镜像源并安装系统依赖（中文字体支持）
-RUN rm -rf /etc/apt/sources.list.d/* && \
-    echo "deb http://mirrors.aliyun.com/debian/ bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
-    echo "deb http://mirrors.aliyun.com/debian-security/ bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+
+# 使用阿里云镜像源（bullseye版本）
+RUN echo "deb http://mirrors.aliyun.com/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb http://mirrors.aliyun.com/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     fonts-wqy-microhei \
