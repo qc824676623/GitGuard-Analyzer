@@ -16,6 +16,32 @@ A specialized IP geographic threat analysis tool built for GitLab, based on ngin
 ## English
 
 ### 📦 Deployment Guide
+- Run as a Docker container without local environment setup
+- Deploy from source code
+
+## 🐳 Using Docker Image (Recommended)
+
+We've packaged the tool as a Docker image and pushed it to Alibaba Cloud Container Registry. You can directly pull and run it:
+
+### Pull the Image
+```bash
+docker pull registry.cn-hangzhou.aliyuncs.com/qc123mjs/gitguard-analyzer:latest
+```
+
+### Run the Container
+```bash
+docker run -d -p 5000:5000 -v /var/log/gitlab/nginx:/var/log/gitlab/nginx --name gitguard-analyzer gitguard-analyzer
+-p [Host Port]:[Container Port 5000]
+-v [Host Directory]:[Container Directory /var/log/gitlab/nginx]
+```
+
+## 🛠️ Local Development (Optional)
+
+If you want to build the Docker image yourself:
+```bash
+cd /GitGuard-Analyzer
+docker build -t gitguard-analyzer .
+```
 
 #### Project Structure
 ```
