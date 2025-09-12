@@ -151,11 +151,15 @@ This project recommends using Python 3.6+ version
 
 ### Dependencies List
 ```txt
-flask==2.3.3
-matplotlib==3.7.2
-seaborn==0.12.2
-pandas==2.0.3
-folium==0.14.0
+numpy==1.26.4
+Flask==2.3.3
+folium==0.20.0
+matplotlib==3.9.2
+pandas==2.2.2
+seaborn==0.13.2
+gevent==23.9.1
+gunicorn==21.2.0
+Jinja2==3.1.2 
 ```
 
 ---
